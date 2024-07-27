@@ -1,0 +1,5 @@
+/node_modules
+/patientor/node_modules
+/9.1-9.7/node_modules
+
+.DS_Store
