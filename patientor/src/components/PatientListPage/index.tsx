@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Box, Table, Button, TableHead, Typography, TableCell, TableRow, TableBody } from '@mui/material';
+import { Box, Table, Button, TableHead, Typography, TableCell, TableRow, TableBody, styled } from '@mui/material';
 import axios from 'axios';
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { PatientFormValues, Patient } from "../../types";
 import AddPatientModal from "../AddPatientModal";
@@ -9,29 +11,31 @@ import HealthRatingBar from "../HealthRatingBar";
 
 import patientService from "../../services/patients";
 
+import { Link } from 'react-router-dom';
+
 interface Props {
   patients : Patient[]
-  setPatients: React.Dispatch<React.SetStateAction<Patient[]>>
 }
 
-const PatientListPage = ({ patients, setPatients } : Props ) => {
+const StyledLink = styled(Link)`
+  text-decoration: none;
+  color: blue;
+  &:hover {
+    color: darkblue;
+  }
+`;
 
-  const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [error, setError] = useState<string>();
+const PatientListPage = ({ patients } : Props ) => {
 
-  const openModal = (): void => setModalOpen(true);
+  const queryClient = useQueryClient();
 
-  const closeModal = (): void => {
-    setModalOpen(false);
-    setError(undefined);
-  };
-
-  const submitNewPatient = async (values: PatientFormValues) => {
-    try {
-      const patient = await patientService.create(values);
-      setPatients(patients.concat(patient));
+  const newPatientMutation = useMutation({
+    mutationFn: patientService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
       setModalOpen(false);
-    } catch (e: unknown) {
+    },
+    onError: (e: unknown) => {
       if (axios.isAxiosError(e)) {
         if (e?.response?.data && typeof e?.response?.data === "string") {
           const message = e.response.data.replace('Something went wrong. Error: ', '');
@@ -45,6 +49,20 @@ const PatientListPage = ({ patients, setPatients } : Props ) => {
         setError("Unknown error");
       }
     }
+  });
+
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [error, setError] = useState<string>();
+
+  const openModal = (): void => setModalOpen(true);
+
+  const closeModal = (): void => {
+    setModalOpen(false);
+    setError(undefined);
+  };
+
+  const submitNewPatient = async (values: PatientFormValues) => {
+    newPatientMutation.mutate(values);
   };
 
   return (
@@ -66,7 +84,11 @@ const PatientListPage = ({ patients, setPatients } : Props ) => {
         <TableBody>
           {Object.values(patients).map((patient: Patient) => (
             <TableRow key={patient.id}>
-              <TableCell>{patient.name}</TableCell>
+              <TableCell>
+                <StyledLink to={`/patients/${patient.id}`}>
+                  {patient.name}
+                </StyledLink>
+              </TableCell>
               <TableCell>{patient.gender}</TableCell>
               <TableCell>{patient.occupation}</TableCell>
               <TableCell>
